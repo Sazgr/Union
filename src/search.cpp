@@ -111,7 +111,7 @@ namespace Search
 
         if (depth <= 0)
         {
-            return Evaluation::evaluate(board);
+            return qsearch(alpha, beta, ss);
         }
 
         if (!(nodes_reached & 1024))
@@ -129,7 +129,7 @@ namespace Search
 
         if (!isRoot)
         {
-            if (board.isRepetition())
+            if (false && board.isRepetition())
             {
                 return 0;
             }
@@ -146,7 +146,7 @@ namespace Search
 
             const Depth R = 2 + depth / 4 + (eval - beta)/200;
 
-            Value nullValue = -negamax<NodeType::NON_PV>(-beta, -beta + 1, depth - 1 - R, ss + 1);
+            Value nullValue = -negamax<NodeType::NON_PV>(-beta, -beta + 1, std::max(1, depth - 1 - R), ss + 1);
 
             board.unmakeNullMove();
 
@@ -205,14 +205,17 @@ namespace Search
                     alpha = value;
                     bestmove = move;
 
-                    pvTable.pvArray[ss->ply][ss->ply] = move;
-
-                    for (int i = ss->ply + 1; i < pvTable.pvLength[ss->ply + 1]; i++)
+                    if constexpr (NT == NodeType::PV)
                     {
-                        pvTable.pvArray[ss->ply][i] = pvTable.pvArray[ss->ply + 1][i];
-                    }
+                        pvTable.pvArray[ss->ply][ss->ply] = move;
 
-                    pvTable.pvLength[ss->ply] = pvTable.pvLength[ss->ply + 1];
+                        for (int i = ss->ply + 1; i < pvTable.pvLength[ss->ply + 1]; i++)
+                        {
+                            pvTable.pvArray[ss->ply][i] = pvTable.pvArray[ss->ply + 1][i];
+                        }
+
+                        pvTable.pvLength[ss->ply] = pvTable.pvLength[ss->ply + 1];
+                    }
 
                     if (value >= beta)
                     {
@@ -236,6 +239,91 @@ namespace Search
             else
             {
                 return 0;
+            }
+        }
+
+        return bestValue;
+    }
+
+    Value SearchThread::qsearch(Value alpha, Value beta, SearchStack *ss)
+    {
+        if (limits.stopped)
+        {
+            return 0;
+        }
+
+        if (!(nodes_reached & 1024))
+        {
+            checkTime();
+        }
+
+        const bool inCheck = board.inCheck();
+
+        Value bestValue = -VALUE_IS_MATE + ss->ply;
+        Value oldAlpha = alpha;
+        Value value = -VALUE_INFINITE;
+        Value eval = Evaluation::evaluate(board);
+
+        if (!inCheck) // Stand pat
+        {
+            alpha = std::max(alpha, eval);
+            bestValue = std::max(bestValue, eval);
+            if (bestValue >= beta)
+            {
+                return bestValue;
+            }
+        }
+
+        Movelist list;
+        if (inCheck)
+        {
+            movegen::legalmoves<MoveGenType::ALL>(list, board);
+        }
+        else
+        {
+            movegen::legalmoves<MoveGenType::CAPTURE>(list, board);
+        }
+        scoreMoves(board, list, ss);
+
+        Move bestmove = Move();
+        int movesSearched = 0;
+
+        for (int i = 0; i < list.size(); i++)
+        {
+            pickNextMove(i, list);
+
+            const Move &move = list[i];
+
+            board.makeMove(move);
+            nodes_reached++;
+            movesSearched++;
+            ss->move = move;
+
+            (ss + 1)->ply = ss->ply + 1;
+
+            value = -qsearch(-beta, -alpha, ss + 1);
+
+            board.unmakeMove(move);
+
+            if (limits.stopped)
+            {
+                return 0;
+            }
+
+            if (value >= bestValue)
+            {
+                bestValue = value;
+
+                if (value >= alpha)
+                {
+                    alpha = value;
+                    bestmove = move;
+
+                    if (value >= beta)
+                    {
+                        break;
+                    }
+                }
             }
         }
 
