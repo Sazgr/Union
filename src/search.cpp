@@ -53,15 +53,22 @@ namespace Search
 
         SearchStack stack[DEPTH_MAX + 10], *ss = stack + 7;
 
-
         for (Depth depth = 1; depth <= limits.depth; depth++)
         {
-            if (limits.stopped || stopEarly())
+            score = negamax<NodeType::PV>(-VALUE_INFINITE, VALUE_INFINITE, depth, ss);
+
+            if (limits.stopped)
             {
+                std::cout << "info depth " << depth << " score cp " << score << " time " << (misc::tick() - startingTime) << " nps " << NPS << " nodes " << nodes_reached << " pv ";
+
+                for (int i = 0; i < pvTable.pvLength[0]; i++)
+                {
+                    std::cout << uci::moveToUci(pvTable.pvArray[0][i]) << " ";
+                }
+                std::cout << std::endl;
+
                 break;
             }
-
-            score = negamax<NodeType::PV>(-VALUE_INFINITE, VALUE_INFINITE, depth, ss);
 
             bestmove = pvTable.pvArray[0][0];
 
@@ -150,7 +157,7 @@ namespace Search
                 return 0;
             }
 
-            if (value >= bestValue)
+            if (value > bestValue)
             {
                 bestValue = value;
 

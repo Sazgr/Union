@@ -135,6 +135,12 @@ namespace UCI
                 std::cout << searchThread->board << std::endl;
                 std::cout << "Evaluation: " << Evaluation::evaluate(searchThread->board) << std::endl;
             }
+            else if (token == "quiesce")
+            {
+                Search::SearchStack stack[DEPTH_MAX + 10], *ss = stack + 7;
+
+                std::cout << searchThread->qsearch(-VALUE_INFINITE, VALUE_INFINITE, ss) << std::endl;
+            }
             else if (token == "go")
             {
                 is >> std::skipws >> token;
