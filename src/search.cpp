@@ -12,22 +12,7 @@ namespace Search
         {
             Move &move = list[i];
 
-            const Piece attacker = board.at(move.from());
-            const Color pieceColor = board.color(attacker);
-            const Piece victim = board.at(move.to());
-            const bool capture = board.isCapture(move);
-
-            if (capture)
-            {
-                move.setScore(CaptureScore + PieceValues[(int)victim] - PieceValues[(int)attacker]);
-            }
-
-            if (move.move() == ss->killers[0].move()){
-                move.setScore(Killer1Score);
-            }
-            else if (move.move() == ss->killers[1].move()){
-                move.setScore(Killer2Score);
-            }
+            move.setScore(0);
 
         }
     }
@@ -135,37 +120,6 @@ namespace Search
             }
         }
 
-        // Null Move Pruning
-        if (!isRoot && depth >= 3 && !inCheck && eval >= beta && hasNonPawnMaterials(board) && (ss - 1)->move.move() != Move::NULL_MOVE)
-        {
-            board.makeNullMove();
-            nodes_reached++;
-            ss->move = Move(Move::NULL_MOVE);
-
-            (ss + 1)->ply = ss->ply + 1;
-
-            const Depth R = 2 + depth / 4 + (eval - beta)/200;
-
-            Value nullValue = -negamax<NodeType::NON_PV>(-beta, -beta + 1, depth - 1 - R, ss + 1);
-
-            board.unmakeNullMove();
-
-            if (limits.stopped)
-            {
-                return 0;
-            }
-
-            if (nullValue >= beta)
-            {
-                if (nullValue > VALUE_IS_MATE){
-                    nullValue = beta;
-                }
-                
-                return nullValue;
-            }
-        }
-
-
         Movelist list;
         movegen::legalmoves<MoveGenType::ALL>(list, board);
         scoreMoves(board, list, ss);
@@ -216,11 +170,6 @@ namespace Search
 
                     if (value >= beta)
                     {
-                        if (isQuiet){
-                            ss->killers[1] = ss->killers[0];
-                            ss->killers[0] = move;
-                        }
-
                         break;
                     }
                 }
