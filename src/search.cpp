@@ -64,7 +64,12 @@ namespace Search
         Time startingTime = startTime();
         tm.set_time(board.sideToMove());
 
-        Move bestmove = Move();
+        Movelist list;
+        movegen::legalmoves<MoveGenType::ALL>(list, board);
+        scoreMoves(board, list, ss);
+        pickNextMove(0, list);
+
+        Move bestmove = list[0];
 
         SearchStack stack[DEPTH_MAX + 10], *ss = stack + 7;
 
